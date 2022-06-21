@@ -1,10 +1,13 @@
+import os 
+
 import streamlit as st
 from fitparse import FitFile
 
 from analysis import process_files, make_figure
 from utils import get_pace_ranges_for_select_slider
 
-DEMO_FILE = "./data/8599886615_ACTIVITY.fit"
+FILE_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+DEMO_FILE = os.path.join(FILE_DIRECTORY, "data", "8599886615_ACTIVITY.fit")
 MIN_LAP_TIME_SECONDS = 5
 MAX_LAP_TIME_SECONDS = int(1.5 * 60 * 60)
 
