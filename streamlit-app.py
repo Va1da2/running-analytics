@@ -50,30 +50,33 @@ I will expand this app to allow for other types of input files.
 files = st.file_uploader(label="Select .fit file(s) for analysis", type="fit", accept_multiple_files=True)
 use_demo_data = st.checkbox("Use demo data")
 
-with st.expander("Advnaced data clearning options [NOT USED YET]"):
-    _ = st.slider("Lap time range (seconds)", MIN_LAP_TIME_SECONDS, MAX_LAP_TIME_SECONDS, (MIN_LAP_TIME_SECONDS, MAX_LAP_TIME_SECONDS), step=5)
-    pace_ranges = get_pace_ranges_for_select_slider(540, 120)
-    _ = st.select_slider("Pace range (min/km)", pace_ranges, (pace_ranges[0], pace_ranges[-1]))
-
-with st.expander("Advanced regression options"):    
-    weight_points_by_distance = st.checkbox("Weight results by the lap distance?")
-
 if files or use_demo_data:
+
     files = files if files else [open(DEMO_FILE, "rb")]
     data = process_files(files)
+
+    with st.expander("Advnaced data clearning options [NOT USED YET]"):
+        _ = st.slider("Lap time range (seconds)", MIN_LAP_TIME_SECONDS, MAX_LAP_TIME_SECONDS, (MIN_LAP_TIME_SECONDS, MAX_LAP_TIME_SECONDS), step=5)
+        pace_ranges = get_pace_ranges_for_select_slider(540, 120)
+        _ = st.select_slider("Pace range (min/km)", pace_ranges, (pace_ranges[0], pace_ranges[-1]))
+
+    with st.expander("Advanced regression options"):    
+        weight_points_by_distance = st.checkbox("Weight results by the lap distance?")
+
     fig = make_figure(data, weight_points_by_distance)
     st.pyplot(fig)
 
     st.markdown("""
     Hopefully, your graph indicates which type of runner you are.
 
-    If you have selected demo data - I am in between (especially when weighing laps by their distance - advanced option). My stride length and cadence increase at about the same rate.
-    I would be interested to hear about your experience!
+    If you have selected demo data - I am most likely a `cadence` runner. Even though the angle seems a bit too steep
+    compared with the Asics graph, but both stride length and cadence increase at the same rate, which is consistent
+    with the cadence runners graph.
     """)
 
-    st.subheader("TO DO:")
-    st.markdown("""
-    1. Enable comments
-    2. Use advanced options for data filtering;
-    3. Add statistical analysis of the slopes -> is there a statistical difference between the two slopes?
-    """)
+st.subheader("TO DO:")
+st.markdown("""
+1. Enable comments
+2. Use advanced options for data filtering;
+3. Add statistical analysis of the slopes -> is there a statistical difference between the two slopes?
+""")

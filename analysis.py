@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from fitparse import FitFile
 from matplotlib.figure import Figure
 
+from analysis_utils import get_y_axis_ticks
+
 SECONDS_IN_MINUTE = 60.
 CADENCE_MULTIPLIER = 2.0
 METERS_IN_KM = 1000.0
@@ -80,6 +82,12 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
     lap_distance = data["lap_distance"].to_list()
     average_stride_length = data["average_stride_length"].to_list()
     average_cadence = data["average_cadence"].to_list()
+
+    stride_ticks, cadence_ticks = get_y_axis_ticks(average_stride_length, average_cadence)
+    print("stride ticks")
+    print(stride_ticks)
+    print("cadence ticks")
+    print(cadence_ticks)
     
     if weight_by_lap_distance:
         stride_b, stride_c = np.polyfit(np.array(average_speed), np.array(average_stride_length), 1, w=lap_distance)
@@ -103,6 +111,8 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
     else:
         ax1.scatter(average_speed, average_stride_length, color=color, alpha=0.7, label="Stride length")
     ax1.plot(average_speed, stride_b*np.array(average_speed) + stride_c, color=color_regression, linestyle="dashed", label="Stride length regression")
+    ax1.set_ylim([stride_ticks[0], stride_ticks[-1]])
+    ax1.set_yticks(stride_ticks)
 
     color = 'tab:blue'
     color_regression = 'tab:blue'
@@ -115,6 +125,8 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
     ax2.plot(
         average_speed, cadence_b*np.array(average_speed) + cadence_c, color=color_regression, linestyle="dashed", label="Cadence regression"
     )
+    ax2.set_ylim([cadence_ticks[0], cadence_ticks[-1]])
+    ax2.set_yticks(cadence_ticks)
     
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
