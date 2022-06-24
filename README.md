@@ -6,8 +6,11 @@ If you have any suggestions about the improvements to the above mentioned analyt
 
 
 ## Releases
-### 2022-06-21
-Initial release.
+### 2022-06-24
+Added exception handling for data preparation.
 
 ### 2022-06-22
 Updated the graph to have the two y-axis comparable - same number of steps, equally spaced.
+
+### 2022-06-21
+Initial release.
