@@ -1,14 +1,17 @@
 import codecs
 from collections import defaultdict
-from typing import Dict, List, IO, Union
+from typing import Dict, List, IO, Union, Tuple, TypeVar
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from fitparse import FitFile
 from matplotlib.figure import Figure
+from matplotlib.collections import PathCollection
 
 from analysis_utils import get_y_axis_ticks
+
+MatplotlibGraphType = TypeVar("MatplotlibGraphType")
 
 SECONDS_IN_MINUTE = 60.0
 CADENCE_MULTIPLIER = 2.0
@@ -36,6 +39,7 @@ def get_lap_data(fit_file: FitFile) -> Dict[str, List[float]]:
         output["average_speed"].append(lap.get_value("enhanced_avg_speed"))
         output["lap_distance"].append(lap.get_value("total_distance"))
         output["lap_time"].append(lap.get_value("total_elapsed_time"))
+        output["lap_power"].append(lap.get_value("Lap Power"))
         output["average_stride_length"].append(
             lap.get_value("total_distance")
             / lap.get_value("total_strides")
@@ -52,19 +56,17 @@ def get_lap_data(fit_file: FitFile) -> Dict[str, List[float]]:
 
 
 def clean_data(
-    data: Dict[str, List[Union[float, int]]],
-    remove_slow_laps: bool = True,
-    remove_short_laps: bool = True,
+    data: pd.DataFrame,
+    min_lap_time: int,
+    max_lap_time: int,
+    min_speed: float,
+    max_speed: float,
 ) -> pd.DataFrame:
 
-    data = pd.DataFrame(data)
-    max_speed = max(data["average_speed"].to_list())
-    if remove_slow_laps:
-        data = data[data["average_speed"] > 0.5 * max_speed]
-    if remove_short_laps:
-        data = data[data["lap_time"] > 30]
+    cleaned_data = data[data["average_speed"].between(min_speed, max_speed)]
+    cleaned_data = cleaned_data[cleaned_data["lap_time"].between(min_lap_time, max_lap_time)]
 
-    return data.sort_values(by="average_speed")
+    return cleaned_data.sort_values(by="average_speed")
 
 
 def process_files(files: List[IO[bytes]]) -> pd.DataFrame:
@@ -84,11 +86,21 @@ def process_files(files: List[IO[bytes]]) -> pd.DataFrame:
                 output["lap_time"].extend(result["lap_time"])
                 output["average_stride_length"].extend(result["average_stride_length"])
                 output["average_cadence"].extend(result["average_cadence"])
+                output["lap_power"].extend(result["lap_power"])
     else:
         raise NoFilesProvidedError
 
-    return clean_data(output)
+    return pd.DataFrame(output)
 
+def select_items_for_legend(lines: List, labels: List[str], line_type: MatplotlibGraphType) -> Tuple[List, List[str]]:
+
+    selected_lines, selected_labels = [], []
+    for index, line in enumerate(lines):
+        if type(line) == line_type:
+            selected_lines.append(line)
+            selected_labels.append(labels[index])
+    
+    return selected_lines, selected_labels
 
 def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
 
@@ -121,7 +133,6 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
     fig.set_size_inches(10, 8)
 
     color = "tab:red"
-    color_regression = "tab:orange"
     ax1.set_xlabel("Average lap running speed (m/s)", fontdict={"fontsize": 14})
     ax1.set_ylabel("Average stride length", color=color, fontdict={"fontsize": 14})
     ax1.tick_params(axis="x", labelsize=14)
@@ -140,13 +151,14 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
             average_speed,
             average_stride_length,
             color=color,
+            s=250,
             alpha=0.7,
             label="Stride length",
         )
     ax1.plot(
         average_speed,
         stride_b * np.array(average_speed) + stride_c,
-        color=color_regression,
+        color=color,
         linestyle="dashed",
         label="Stride length regression",
     )
@@ -154,7 +166,6 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
     ax1.set_yticks(stride_ticks)
 
     color = "tab:blue"
-    color_regression = "tab:blue"
     ax2.set_ylabel(
         "Average lap cadence", color=color, fontdict={"fontsize": 14}
     )  # we already handled the x-label with ax1
@@ -170,12 +181,12 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
         )
     else:
         ax2.scatter(
-            average_speed, average_cadence, color=color, alpha=0.7, label="Cadence"
+            average_speed, average_cadence, color=color, alpha=0.7, s=250, label="Cadence"
         )
     ax2.plot(
         average_speed,
         cadence_b * np.array(average_speed) + cadence_c,
-        color=color_regression,
+        color=color,
         linestyle="dashed",
         label="Cadence regression",
     )
@@ -184,12 +195,13 @@ def make_figure(data: pd.DataFrame, weight_by_lap_distance=False) -> Figure:
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
+    selected_lines, selected_labels = select_items_for_legend(lines + lines2, labels + labels2, PathCollection)
     if weight_by_lap_distance:
         ax2.legend(
-            lines + lines2, labels + labels2, loc=0, labelspacing=1.0, markerscale=0.2
+            selected_lines, selected_labels, loc=0, labelspacing=1.0, markerscale=0.2
         )
     else:
-        ax2.legend(lines + lines2, labels + labels2, loc=0, labelspacing=1.0)
+        ax2.legend(selected_lines, selected_labels, loc=0, labelspacing=1.0)
 
     # add lines to indicate pace
     min_speed, max_speed = min(average_speed), max(average_speed)

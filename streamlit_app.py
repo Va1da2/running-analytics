@@ -5,8 +5,8 @@ import pandas as pd
 import streamlit as st
 from fitparse import FitFile
 
-from analysis import process_files, make_figure
-from utils import get_pace_ranges_for_select_slider
+from analysis import process_files, make_figure, clean_data
+from utils import get_pace_ranges_for_select_slider, speed_from_pace_string
 
 FILE_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 DEMO_FILE = os.path.join(FILE_DIRECTORY, "data", "8599886615_ACTIVITY.fit")
@@ -81,17 +81,21 @@ if files or use_demo_data:
         with st.expander("Stack Trace"):
             stack_trace = traceback.format_exception(e)
             st.write(f"{''.join(stack_trace)}")
+    
     if not data.empty:
+        
         with st.expander("Advnaced data clearning options [NOT USED YET]"):
-            _ = st.slider(
+            min_lap_time, max_lap_time = int(data["lap_time"].min()), int(data["lap_time"].max())
+            selected_min_lap_time, selected_max_lap_time = st.slider(
                 "Lap time range (seconds)",
-                MIN_LAP_TIME_SECONDS,
-                MAX_LAP_TIME_SECONDS,
-                (MIN_LAP_TIME_SECONDS, MAX_LAP_TIME_SECONDS),
+                min_lap_time,
+                max_lap_time,
+                (min_lap_time, max_lap_time),
                 step=5,
             )
+            
             pace_ranges = get_pace_ranges_for_select_slider(540, 120)
-            _ = st.select_slider(
+            slow_selected_pace, fast_selected_pace = st.select_slider(
                 "Pace range (min/km)", pace_ranges, (pace_ranges[0], pace_ranges[-1])
             )
 
@@ -99,9 +103,15 @@ if files or use_demo_data:
             weight_points_by_distance = st.checkbox(
                 "Weight results by the lap distance?"
             )
-
-        fig = make_figure(data, weight_points_by_distance)
-        st.pyplot(fig)
+        cleaned_data = clean_data(
+            data,
+            min_lap_time=selected_min_lap_time,
+            max_lap_time=selected_max_lap_time,
+            min_speed=speed_from_pace_string(slow_selected_pace),
+            max_speed=speed_from_pace_string(fast_selected_pace),
+        )
+        fig = make_figure(cleaned_data, weight_points_by_distance)
+        st.pyplot(fig, clear_figure=True)
 
         st.markdown(
             """
@@ -116,8 +126,7 @@ if files or use_demo_data:
 st.subheader("TO DO:")
 st.markdown(
     """
-1. Enable comments
-2. Use advanced options for data filtering;
+1. Add comments
 3. Add statistical analysis of the slopes -> is there a statistical difference between the two slopes?
 """
 )
